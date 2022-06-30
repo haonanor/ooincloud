@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"net/http"
 	"strings"
 	"study/recourse"
 
@@ -9,6 +10,11 @@ import (
 
 func Static() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		method := c.Request.Method
+
+		if method == "OPTIONS" {
+			c.JSON(http.StatusOK, "Options Request!")
+		}
 
 		path := c.Request.URL.Path
 

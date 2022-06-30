@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"study/core"
 	"study/initialize"
+	"study/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -30,6 +32,14 @@ func setup() {
 	core.ROBOT_CONFIG = initialize.Viper("config/app.yaml")
 	core.ROBOT_LOGGER = initialize.Zap()
 	core.ROBOT_DB = initialize.Gorm()
+	pathData := "uploads"
+	if is, _ := utils.DirExists(pathData); !is {
+		os.Mkdir(pathData, 0777)
+	}
+	tmpPath := "tmp"
+	if isDir, _ := utils.DirExists(tmpPath); !isDir {
+		os.Mkdir(tmpPath, 0777)
+	}
 	// fmt.Println(gin.DebugMode)
 }
 
