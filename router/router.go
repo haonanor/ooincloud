@@ -1,6 +1,8 @@
 package router
 
-import "study/router/admin"
+import (
+	"study/router/admin"
+)
 
 // var AppRouters = make([]func(*gin.RouterGroup), 0)
 

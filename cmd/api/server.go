@@ -38,20 +38,11 @@ var AppRouters = make([]func(), 0)
 func init() {
 	StartCmd.PersistentFlags().StringVarP(&configYml, "config", "c", "config/app.yaml", "Start server with provided configuration file")
 	// AppRouters = append(AppRouters, router.InitRouter)
+	// boot.InitStatic()
+
 }
 
 func run() error {
-	// router := gin.Default()
-	// router.registerUserRouter()
-	// // router.GET("/user/:name", apis.Hello)
-
-	// for _, f := range AppRouters {
-	// 	f()
-	// }
-	// fmt.Println(router)
-	// common.Viper("aaa", "bbbb")
-	// fmt.Println(router.InitRouter())
-
 	srv := &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", core.ROBOT_CONFIG.Get("app.host"), core.ROBOT_CONFIG.Get("app.port")),
 		Handler: initialize.InitRouter(),
