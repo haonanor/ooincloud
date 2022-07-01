@@ -3,95 +3,102 @@ package v1
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
-	"path"
-	"path/filepath"
 	"strconv"
 	"study/common"
+	"study/core"
 	"study/utils"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
 )
 
 type FileController struct {
 	common.Base
 }
 
+func (o FileController) GetA(c *gin.Context) {
+	rand.Seed(time.Now().UnixNano())
+	core.ROBOT_CACHE.Set("upload:1", []byte(strconv.Itoa(rand.Intn(10000))))
+}
+func (o FileController) GetB(c *gin.Context) {
+	a, _ := core.ROBOT_CACHE.Get("upload:1")
+	fmt.Printf("cast.ToString(a): %v\n", cast.ToString(a))
+}
 func (o FileController) Post(c *gin.Context) {
-	c.Header("Content-Type", "text/plain;")
-	c.String(http.StatusOK, "12351")
+	s := c.Request.Header.Get("Upload-Length")
+	if s == "" {
+		// uploadPath := "uploads/"
+		uploadPath := core.ROBOT_CONFIG.Get("upload.path").(string)
+		file, _ := c.FormFile("file")
+		core.ROBOT_LOGGER.Info(file.Filename)
+		c.SaveUploadedFile(file, uploadPath+utils.CreateFileKey()+"."+utils.GetFileExt(file.Filename))
+		c.String(http.StatusOK, fmt.Sprintf("'%s' uploaded!", file.Filename))
+	} else {
+		c.Header("Content-Type", "text/plain;")
+		c.String(http.StatusOK, utils.CreateFileKey())
+	}
+
+}
+
+func (o FileController) Head(c *gin.Context) {
+	id := c.Query("patch")
+	b, err := core.ROBOT_CACHE.Get("upload:" + id)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "重启失败")
+		return
+	}
+
+	c.Header("Upload-Offset", cast.ToString(b))
+	c.String(http.StatusOK, "继续上传")
 }
 
 func (o FileController) Patch(c *gin.Context) {
 	o.SetContext(c)
-	// pathData := "uploads"
-
-	tmpPath := "tmp/"
-
+	var err error
+	uploadPath := core.ROBOT_CONFIG.Get("upload.path").(string)
+	fmt.Printf("uploadPath: %v\n", uploadPath)
 	id := c.Query("patch")
+	offsetStr := c.Request.Header.Get("Upload-Offset")
+	// if offsetStr == "200000000" {
+	// 	c.String(http.StatusInternalServerError, "上传失败")
+	// 	return
+	// }
+	uploadFileName := c.Request.Header.Get("Upload-Name")
 
-	if is, _ := utils.DirExists(tmpPath + id); !is {
-		os.Mkdir(tmpPath+id, 0777)
-	}
+	outputFile := uploadPath + id + "." + utils.GetFileExt(uploadFileName)
 
-	// fh, err := c.FormFile("file")
-	// fmt.Printf("fh: %v\n", fh)
-	// fmt.Println(err)
-	b, err2 := ioutil.ReadAll(c.Request.Body)
-	offset := c.Request.Header.Get("Upload-Offset")
-	leng := c.Request.Header.Get("Upload-Length")
-	// o.OK(nil, "上传成功")
-	if err2 == nil {
-		s := path.Join(tmpPath+id, offset+".chunk")
-		err := ioutil.WriteFile(s, b, 0777)
-		if err != nil {
-			o.ERROR(300001, err.Error())
-			return
-		}
-		i, _ := strconv.Atoi(leng)
-		i2, _ := strconv.Atoi(offset)
-		if (i - i2) <= 500000 {
-			var files []string
-
-			err := filepath.Walk(tmpPath+id, func(path string, info os.FileInfo, err error) error {
-				files = append(files, path)
-				return nil
-			})
-			if err != nil {
-				panic(err)
-			}
-			outputFile := "uploads/abc.jpeg"
-			f, _ := OpenFile(outputFile)
-			// defer f.Close()
-			for _, file := range files {
-				b2, _ := ioutil.ReadFile(file)
-				f.Write(b2)
-				fmt.Printf("file: %v\n", file)
-			}
-
-		}
-
-		o.OK(nil, "上传成功")
+	bdoy, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		core.ROBOT_LOGGER.Error("body读取失败")
+		c.String(http.StatusInternalServerError, "上传失败")
 		return
-		// err3 := c.SaveUploadedFile(b, s)
-		// if err3 == nil {
-		// 	o.OK(nil, "上传成功")
-		// 	return
-		// } else {
-		// 	o.ERROR(300001, err2.Error())
-		// 	return
-		// }
-
 	}
 
-	o.ERROR(300001, "上传失败")
+	file, err := OpenFile(outputFile)
+	if err != nil {
+		core.ROBOT_LOGGER.Error("目标文件打开失败")
+		c.String(http.StatusInternalServerError, "目标文件打开失败")
+		return
+	}
+	defer file.Close()
+	offset, _ := strconv.ParseInt(offsetStr, 10, 64)
+
+	file.WriteAt(bdoy, offset)
+	step := core.ROBOT_CONFIG.Get("upload.chunkSize").(int)
+	core.ROBOT_CACHE.Set("upload:"+id, []byte(cast.ToString(offset+cast.ToInt64(step))))
+	o.OK(nil, "上传成功")
 }
 func OpenFile(filename string) (*os.File, error) {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		fmt.Println("文件不存在")
 		return os.Create(filename) //创建文件
 	}
-	fmt.Println("文件存在")
-	return os.OpenFile(filename, os.O_APPEND, 0666) //打开文件
+	return os.OpenFile(filename, os.O_RDWR, 0666) //打开文件
+}
+
+func (o FileController) Delete(c *gin.Context) {
+	c.String(http.StatusOK, "成功")
 }

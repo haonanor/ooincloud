@@ -14,5 +14,9 @@ func (o *ApiFileRouter) FileRouter(Router *gin.RouterGroup) {
 	{
 		r.POST("/file/upload", api.Post)
 		r.PATCH("/file/upload", api.Patch)
+		r.HEAD("/file/upload", api.Head)
+		r.DELETE("/file/upload", api.Delete)
+		r.GET("/file/uploadA", api.GetA)
+		r.GET("/file/uploadB", api.GetB)
 	}
 }

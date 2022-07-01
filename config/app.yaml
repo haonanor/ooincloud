@@ -3,3 +3,8 @@ app:
   mode: dev
   host: 0.0.0.0
   port: 8088
+
+upload:
+  path: uploads/
+  # 和前端必须保持同步
+  chunkSize: 100000000 
